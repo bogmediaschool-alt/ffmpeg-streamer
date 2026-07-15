@@ -36,3 +36,4 @@ The app runs locally at the URL printed by Vite, usually `http://localhost:5173`
 ## GitHub Pages
 
 The repository includes `.github/workflows/pages.yml`. Push `main` to GitHub, then open the Pages deployment URL from the workflow summary.
+If the Pages URL returns 404, enable Pages with "GitHub Actions" as the source in the repository settings.
