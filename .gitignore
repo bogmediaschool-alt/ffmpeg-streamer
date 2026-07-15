@@ -1,0 +1,12 @@
+node_modules/
+dist/
+pnpm-lock.yaml
+*.tsbuildinfo
+*.d.ts
+!src/vite-env.d.ts
+tailwind.config.js
+vite.config.js
+.DS_Store
+.env
+.env.*
+!.env.example
