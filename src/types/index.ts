@@ -13,6 +13,9 @@ export type PageId =
 
 export type Language = "en" | "uk" | "de";
 export type TemperatureUnit = "c" | "f";
+export type MapProvider = "openstreetmap" | "google";
+export type WeatherProvider = "mock" | "apple";
+export type MusicService = "YouTube Music" | "Apple Music" | "Spotify";
 
 export interface Settings {
   language: Language;
@@ -21,7 +24,12 @@ export interface Settings {
   brightness: number;
   buttonSounds: boolean;
   demoSpeed: number;
-  airPodsNotification: boolean;
+  carPhoto: string;
+  mapProvider: MapProvider;
+  googleMapsApiKey: string;
+  weatherProvider: WeatherProvider;
+  appleWeatherToken: string;
+  musicConnections: Record<MusicService, boolean>;
 }
 
 export interface Contact {
@@ -35,7 +43,7 @@ export interface Track {
   id: string;
   title: string;
   artist: string;
-  source: "YouTube" | "Apple Music";
+  source: MusicService;
   duration: number;
   cover: string;
   audioUrl?: string;
@@ -46,6 +54,8 @@ export interface RadioStation {
   frequency: string;
   name: string;
   genre: string;
+  streamUrl?: string;
+  source?: string;
 }
 
 export interface WeatherDay {

@@ -1,17 +1,92 @@
 import { Heart, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GlassPanel } from "../components/GlassPanel";
 import { radioStations } from "../data/radioStations";
+import { useLocalStorage } from "../hooks/useLocalStorage";
+import type { RadioStation } from "../types";
+
+interface RadioBrowserStation {
+  stationuuid: string;
+  name: string;
+  tags?: string;
+  countrycode?: string;
+  url_resolved?: string;
+  url?: string;
+}
 
 export function RadioPage() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [stations, setStations] = useState<RadioStation[]>(radioStations);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useLocalStorage<string[]>("car-ui-favorite-radio", []);
   const [volume, setVolume] = useState(45);
-  const station = radioStations[currentIndex];
+  const [status, setStatus] = useState("Open radio sources");
+  const station = stations[currentIndex] ?? stations[0];
+
+  useEffect(() => {
+    fetch("https://de1.api.radio-browser.info/json/stations/search?countrycode=DE&hidebroken=true&limit=8&order=votes&reverse=true")
+      .then((response) => {
+        if (!response.ok) throw new Error("Radio directory unavailable");
+        return response.json() as Promise<RadioBrowserStation[]>;
+      })
+      .then((items) => {
+        const openStations = items
+          .filter((item) => item.url_resolved || item.url)
+          .slice(0, 5)
+          .map((item, index): RadioStation => ({
+            id: item.stationuuid,
+            frequency: `WEB ${index + 1}`,
+            name: item.name || `Open Radio ${index + 1}`,
+            genre: item.tags?.split(",").slice(0, 2).join(", ") || item.countrycode || "Open stream",
+            streamUrl: item.url_resolved || item.url,
+            source: "Radio Browser",
+          }));
+        if (openStations.length) {
+          setStations(openStations);
+          setCurrentIndex(0);
+          setStatus("Loaded from Radio Browser");
+        }
+      })
+      .catch(() => setStatus("Fallback mock stations"));
+  }, []);
+
+  useEffect(() => {
+    if (!audioRef.current) audioRef.current = new Audio();
+    audioRef.current.volume = volume / 100;
+  }, [volume]);
+
+  useEffect(() => {
+    if (!audioRef.current) audioRef.current = new Audio();
+    const audio = audioRef.current;
+    audio.pause();
+
+    if (!station?.streamUrl) {
+      if (playing) setStatus("This mock station has no live stream");
+      return;
+    }
+
+    audio.src = station.streamUrl;
+    audio.volume = volume / 100;
+    if (!playing) return;
+
+    audio
+      .play()
+      .then(() => setStatus(station.source ?? "Playing open radio stream"))
+      .catch(() => {
+        setPlaying(false);
+        setStatus("Stream could not start in this browser");
+      });
+  }, [playing, station, volume]);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
 
   const move = (direction: 1 | -1) => {
-    setCurrentIndex((index) => (index + direction + radioStations.length) % radioStations.length);
+    setCurrentIndex((index) => (index + direction + stations.length) % stations.length);
     setPlaying(true);
   };
 
@@ -20,7 +95,8 @@ export function RadioPage() {
       <GlassPanel className="rounded-[2rem] p-6">
         <h1 className="text-4xl font-bold text-white">Radio</h1>
         <div className="mt-6 space-y-3">
-          {radioStations.map((item, index) => (
+          <p className="mt-2 text-sm text-white/45">{status}</p>
+          {stations.map((item, index) => (
             <button
               key={item.id}
               type="button"
@@ -35,6 +111,7 @@ export function RadioPage() {
                 <span className="text-lg text-white/60">
                   {item.name} · {item.genre}
                 </span>
+                {item.source ? <span className="block text-sm text-white/38">{item.source}</span> : null}
               </span>
               <span className="grid min-h-12 min-w-12 place-items-center rounded-full bg-white/10">
                 <Play size={22} fill="currentColor" />

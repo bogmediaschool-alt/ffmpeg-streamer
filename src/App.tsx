@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Power } from "lucide-react";
 import { useEffect } from "react";
-import { AirPodsNotification } from "./components/AirPodsNotification";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/Sidebar";
 import { AppsPage } from "./pages/AppsPage";
@@ -80,7 +79,6 @@ function AppShell() {
           className="relative mx-auto flex aspect-video h-full min-h-[540px] min-w-[980px] max-w-[1760px] gap-5 rounded-[2.6rem] p-3"
           style={{ filter: `brightness(${settings.brightness}%)` }}
         >
-          <AirPodsNotification />
           <Sidebar />
           <section className="min-w-0 flex-1">
             <AnimatePresence mode="wait">

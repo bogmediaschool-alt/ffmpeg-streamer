@@ -1,17 +1,24 @@
-import { Heart, Search } from "lucide-react";
+import { ExternalLink, Heart, Link2, Search } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { GlassPanel } from "../components/GlassPanel";
 import { MusicPlayer } from "../components/MusicPlayer";
 import { tracks } from "../data/tracks";
 import { useKeyboardGrid } from "../hooks/useKeyboardGrid";
 import { useApp } from "../store/AppContext";
-import type { Track } from "../types";
+import type { MusicService, Track } from "../types";
 
-type MusicTab = "YouTube" | "Apple Music" | "Favorites";
+type MusicTab = MusicService | "Favorites";
+
+const musicTabs: MusicTab[] = ["YouTube Music", "Apple Music", "Spotify", "Favorites"];
+const serviceLinks: Record<MusicService, string> = {
+  "YouTube Music": "https://music.youtube.com/",
+  "Apple Music": "https://music.apple.com/",
+  Spotify: "https://open.spotify.com/",
+};
 
 export function MusicPage() {
-  const { favoriteTrackIds, toggleFavoriteTrack, currentTrackId, setCurrentTrackId } = useApp();
-  const [tab, setTab] = useState<MusicTab>("YouTube");
+  const { favoriteTrackIds, toggleFavoriteTrack, currentTrackId, setCurrentTrackId, settings, updateSettings } = useApp();
+  const [tab, setTab] = useState<MusicTab>("YouTube Music");
   const [query, setQuery] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   useKeyboardGrid(listRef);
@@ -62,14 +69,14 @@ export function MusicPage() {
       </GlassPanel>
 
       <GlassPanel className="flex min-h-0 flex-col rounded-[2rem] p-6">
-        <div className="grid grid-cols-3 rounded-[1.6rem] bg-white/8 p-1">
-          {(["YouTube", "Apple Music", "Favorites"] as MusicTab[]).map((item) => (
+        <div className="grid grid-cols-4 rounded-[1.6rem] bg-white/8 p-1">
+          {musicTabs.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setTab(item)}
               className={[
-                "min-h-14 rounded-[1.35rem] px-4 text-2xl font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-electric-300",
+                "min-h-14 rounded-[1.35rem] px-3 text-xl font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-electric-300",
                 tab === item ? "bg-white/35 text-white" : "text-white/88 hover:bg-white/10",
               ].join(" ")}
             >
@@ -77,6 +84,37 @@ export function MusicPage() {
             </button>
           ))}
         </div>
+        {tab !== "Favorites" ? (
+          <div className="mt-4 flex min-h-14 items-center gap-3 rounded-[1.35rem] bg-black/22 px-4">
+            <Link2 size={22} className="text-electric-400" />
+            <span className="flex-1 text-white/70">
+              {settings.musicConnections[tab] ? `${tab} account connected` : `Connect your ${tab} account`}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                updateSettings({
+                  musicConnections: {
+                    ...settings.musicConnections,
+                    [tab]: !settings.musicConnections[tab],
+                  },
+                })
+              }
+              className="min-h-11 rounded-full bg-electric-500 px-4 font-semibold outline-none transition hover:bg-electric-400 focus-visible:ring-2 focus-visible:ring-electric-300"
+            >
+              {settings.musicConnections[tab] ? "Disconnect" : "Connect"}
+            </button>
+            <a
+              href={serviceLinks[tab]}
+              target="_blank"
+              rel="noreferrer"
+              className="grid min-h-11 min-w-11 place-items-center rounded-full bg-white/8 outline-none transition hover:bg-white/14 focus-visible:ring-2 focus-visible:ring-electric-300"
+              aria-label={`Open ${tab}`}
+            >
+              <ExternalLink size={21} />
+            </a>
+          </div>
+        ) : null}
         <label className="mt-5 flex min-h-16 items-center gap-4 rounded-[1.5rem] border border-electric-400/35 bg-white/6 px-5 text-white focus-within:ring-2 focus-within:ring-electric-300">
           <Search size={34} />
           <input

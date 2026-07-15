@@ -12,7 +12,16 @@ const defaultSettings: Settings = {
   brightness: 92,
   buttonSounds: false,
   demoSpeed: 0,
-  airPodsNotification: true,
+  carPhoto: "",
+  mapProvider: "openstreetmap",
+  googleMapsApiKey: "",
+  weatherProvider: "mock",
+  appleWeatherToken: "",
+  musicConnections: {
+    "YouTube Music": false,
+    "Apple Music": false,
+    Spotify: false,
+  },
 };
 
 interface AppContextValue {
@@ -39,7 +48,15 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentPage, setPage] = useState<PageId>("home");
   const [previousPage, setPreviousPage] = useState<PageId>("home");
-  const [settings, setSettings] = useLocalStorage<Settings>("car-ui-settings", defaultSettings);
+  const [storedSettings, setSettings] = useLocalStorage<Settings>("car-ui-settings", defaultSettings);
+  const settings: Settings = {
+    ...defaultSettings,
+    ...storedSettings,
+    musicConnections: {
+      ...defaultSettings.musicConnections,
+      ...storedSettings.musicConnections,
+    },
+  };
   const [contacts, setContacts] = useLocalStorage<Contact[]>("car-ui-contacts", defaultContacts);
   const [favoriteTrackIds, setFavoriteTrackIds] = useLocalStorage<string[]>("car-ui-favorite-tracks", []);
   const [currentTrackId, setCurrentTrackId] = useLocalStorage<string>("car-ui-current-track", tracks[4].id);
@@ -52,7 +69,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateSettings = (nextSettings: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...nextSettings }));
+    setSettings((prev) => ({
+      ...defaultSettings,
+      ...prev,
+      ...nextSettings,
+      musicConnections: {
+        ...defaultSettings.musicConnections,
+        ...prev.musicConnections,
+        ...nextSettings.musicConnections,
+      },
+    }));
     if (typeof nextSettings.demoSpeed === "number") setSpeedState(nextSettings.demoSpeed);
   };
 

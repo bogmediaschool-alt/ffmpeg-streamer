@@ -1,6 +1,6 @@
 import L, { LayerGroup, Map as LeafletMap, TileLayer } from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { LocateFixed, Map, Minus, Navigation, Plus, Search, X } from "lucide-react";
+import { ExternalLink, LocateFixed, Map, Minus, Navigation, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WeatherBadge } from "../components/WeatherBadge";
 import { dortmundPosition, mapPois } from "../data/mapPois";
@@ -20,7 +20,7 @@ function markerIcon(type: "current" | "poi" | "route" = "poi") {
 }
 
 export function MapsPage() {
-  const { speed, setCurrentPage } = useApp();
+  const { speed, setCurrentPage, settings } = useApp();
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const tileRef = useRef<TileLayer | null>(null);
@@ -30,6 +30,10 @@ export function MapsPage() {
   const [activeCategory, setActiveCategory] = useState<PoiCategory>("Hotel");
   const [selectedPoi, setSelectedPoi] = useState<MapPoi | null>(null);
   const [mapMode, setMapMode] = useState<"dark" | "standard">("dark");
+  const [googleZoom, setGoogleZoom] = useState(14);
+  const [googleCenter, setGoogleCenter] = useState<[number, number]>(dortmundPosition);
+  const [googleMapType, setGoogleMapType] = useState<"roadmap" | "satellite">("roadmap");
+  const useGoogleMap = settings.mapProvider === "google" && Boolean(settings.googleMapsApiKey.trim());
 
   const filteredPois = useMemo(
     () =>
@@ -40,6 +44,19 @@ export function MapsPage() {
       ),
     [activeCategory, query],
   );
+
+  const googleMapSrc = useMemo(() => {
+    const key = encodeURIComponent(settings.googleMapsApiKey.trim());
+    if (!key) return "";
+    if (selectedPoi) {
+      return `https://www.google.com/maps/embed/v1/directions?key=${key}&origin=${dortmundPosition[0]},${dortmundPosition[1]}&destination=${selectedPoi.position[0]},${selectedPoi.position[1]}&mode=driving&maptype=${googleMapType}`;
+    }
+    return `https://www.google.com/maps/embed/v1/view?key=${key}&center=${googleCenter[0]},${googleCenter[1]}&zoom=${googleZoom}&maptype=${googleMapType}`;
+  }, [googleCenter, googleMapType, googleZoom, selectedPoi, settings.googleMapsApiKey]);
+
+  const googleRouteUrl = selectedPoi
+    ? `https://www.google.com/maps/dir/?api=1&origin=${dortmundPosition[0]},${dortmundPosition[1]}&destination=${selectedPoi.position[0]},${selectedPoi.position[1]}&travelmode=driving`
+    : `https://www.google.com/maps/search/?api=1&query=${googleCenter[0]},${googleCenter[1]}`;
 
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return;
@@ -110,15 +127,56 @@ export function MapsPage() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition((position) => {
       const next: [number, number] = [position.coords.latitude, position.coords.longitude];
+      setGoogleCenter(next);
       mapRef.current?.setView(next, 15);
       L.marker(next, { icon: markerIcon("current") }).addTo(mapRef.current as LeafletMap).bindPopup("Browser location").openPopup();
     });
   };
 
+  const zoom = (direction: 1 | -1) => {
+    if (useGoogleMap) {
+      setGoogleZoom((value) => Math.max(3, Math.min(20, value + direction)));
+      return;
+    }
+    if (direction === 1) mapRef.current?.zoomIn();
+    else mapRef.current?.zoomOut();
+  };
+
+  const centerMap = () => {
+    setGoogleCenter(dortmundPosition);
+    setGoogleZoom(14);
+    mapRef.current?.setView(dortmundPosition, 14);
+  };
+
+  const toggleMapMode = () => {
+    setMapMode((mode) => (mode === "dark" ? "standard" : "dark"));
+    setGoogleMapType((type) => (type === "roadmap" ? "satellite" : "roadmap"));
+  };
+
   return (
     <div className="relative h-full overflow-hidden rounded-[2rem] border border-white/10 bg-cockpit-950 shadow-panel">
       <div ref={mapEl} className="absolute inset-0 z-0" />
+      {useGoogleMap ? (
+        <iframe
+          title="Google Maps"
+          src={googleMapSrc}
+          className="absolute inset-0 z-[1] h-full w-full border-0"
+          loading="lazy"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      ) : null}
       <div className="pointer-events-none absolute inset-0 z-10 bg-cockpit-950/10" />
+      {settings.mapProvider === "google" && !settings.googleMapsApiKey.trim() ? (
+        <div className="absolute left-[390px] top-5 z-20 rounded-2xl border border-yellow-300/30 bg-black/52 px-5 py-3 text-sm text-yellow-50 shadow-glow backdrop-blur-xl">
+          Add your Google Maps API key in Settings. OpenStreetMap fallback is active.
+        </div>
+      ) : null}
+      {useGoogleMap ? (
+        <div className="absolute left-[390px] top-5 z-20 rounded-2xl border border-electric-400/30 bg-black/48 px-5 py-3 text-sm text-white shadow-glow backdrop-blur-xl">
+          Google Maps connected with your key.
+        </div>
+      ) : null}
 
       <aside className="absolute left-5 top-1/2 z-20 flex max-h-[86%] w-[350px] -translate-y-1/2 flex-col rounded-[2rem] border border-electric-400/25 bg-cockpit-950/78 p-5 text-white shadow-glow backdrop-blur-2xl">
         <label className="flex min-h-16 items-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/8 px-4 focus-within:ring-2 focus-within:ring-electric-300">
@@ -180,7 +238,7 @@ export function MapsPage() {
         <button
           type="button"
           aria-label="Zoom in"
-          onClick={() => mapRef.current?.zoomIn()}
+          onClick={() => zoom(1)}
           className="grid min-h-16 min-w-20 place-items-center text-white outline-none transition hover:bg-white/12 focus-visible:ring-2 focus-visible:ring-electric-300"
         >
           <Plus size={28} />
@@ -188,7 +246,7 @@ export function MapsPage() {
         <button
           type="button"
           aria-label="Zoom out"
-          onClick={() => mapRef.current?.zoomOut()}
+          onClick={() => zoom(-1)}
           className="grid min-h-16 min-w-20 place-items-center border-t border-white/10 text-white outline-none transition hover:bg-white/12 focus-visible:ring-2 focus-visible:ring-electric-300"
         >
           <Minus size={28} />
@@ -196,7 +254,7 @@ export function MapsPage() {
         <button
           type="button"
           aria-label="Center map"
-          onClick={() => mapRef.current?.setView(dortmundPosition, 14)}
+          onClick={centerMap}
           className="grid min-h-16 min-w-20 place-items-center border-t border-white/10 text-white outline-none transition hover:bg-white/12 focus-visible:ring-2 focus-visible:ring-electric-300"
         >
           <Navigation size={28} fill="currentColor" />
@@ -219,7 +277,7 @@ export function MapsPage() {
           </button>
           <button
             type="button"
-            onClick={() => setMapMode((mode) => (mode === "dark" ? "standard" : "dark"))}
+            onClick={toggleMapMode}
             aria-label="Toggle map view"
             className="grid min-h-16 min-w-16 place-items-center rounded-full bg-white/14 text-white shadow-glow outline-none backdrop-blur-2xl transition hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-electric-300"
           >
@@ -243,6 +301,15 @@ export function MapsPage() {
           <p className="mt-3 text-xl">
             Route: {selectedPoi.distanceKm} km · {selectedPoi.minutes} min
           </p>
+          <a
+            href={googleRouteUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-full bg-electric-500 px-4 font-semibold text-white outline-none transition hover:bg-electric-400 focus-visible:ring-2 focus-visible:ring-electric-300"
+          >
+            <ExternalLink size={20} />
+            Open in Google Maps
+          </a>
         </div>
       ) : null}
     </div>

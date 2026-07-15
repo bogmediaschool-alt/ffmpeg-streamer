@@ -8,9 +8,18 @@ Demo web simulator of a modern in-car multimedia interface inspired by Apple Car
 - Tailwind CSS
 - Lucide React icons
 - Framer Motion animations
-- Leaflet with OpenStreetMap tiles
+- Leaflet with OpenStreetMap fallback and optional Google Maps embed with your own API key
 - localStorage persistence
 - PWA manifest and service worker
+
+## Integrations
+
+- Car photo: upload on the dashboard; the image stays in this browser only.
+- Maps: choose OpenStreetMap or Google Maps in Settings. Google Maps requires your own API key.
+- Weather: mock Berghofen weather by default, with an Apple WeatherKit JWT field prepared in Settings.
+- Music: YouTube Music, Apple Music, and Spotify connection states are saved locally with official service links.
+- Radio: tries open Radio Browser streams and falls back to mock stations when unavailable.
+- Phone contacts: uses the browser Contacts Picker API when the device/browser supports it.
 
 ## Commands
 

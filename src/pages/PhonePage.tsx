@@ -1,4 +1,4 @@
-import { Delete, Mic, Phone, PhoneOff, Plus, Search, Speaker, UserRound } from "lucide-react";
+import { Delete, Download, Mic, Phone, PhoneOff, Plus, Search, Speaker, UserRound } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { GlassPanel } from "../components/GlassPanel";
 import { Modal } from "../components/Modal";
@@ -8,6 +8,17 @@ import type { Contact } from "../types";
 type PhoneTab = "contacts" | "keypad";
 
 const keypad = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
+
+declare global {
+  interface Navigator {
+    contacts?: {
+      select: (
+        properties: Array<"name" | "tel" | "email" | "address" | "icon">,
+        options?: { multiple?: boolean },
+      ) => Promise<Array<{ name?: string[]; tel?: string[] }>>;
+    };
+  }
+}
 
 function initials(name: string) {
   return name
@@ -28,6 +39,7 @@ export function PhonePage() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [importStatus, setImportStatus] = useState("");
 
   const filteredContacts = useMemo(
     () => contacts.filter((contact) => `${contact.name} ${contact.phone}`.toLowerCase().includes(query.toLowerCase())),
@@ -60,6 +72,42 @@ export function PhonePage() {
     setAdding(false);
   };
 
+  const importPhoneContacts = async () => {
+    if (!navigator.contacts?.select) {
+      setImportStatus("Phone contact access is not available in this browser.");
+      return;
+    }
+
+    try {
+      const picked = await navigator.contacts.select(["name", "tel"], { multiple: true });
+      const imported = picked
+        .map((item): Contact | null => {
+          const importedName = item.name?.[0]?.trim();
+          const importedPhone = item.tel?.[0]?.trim();
+          if (!importedName || !importedPhone) return null;
+          return {
+            id: `phone-${Date.now()}-${importedPhone}`,
+            name: importedName,
+            phone: importedPhone,
+          };
+        })
+        .filter((item): item is Contact => Boolean(item));
+
+      if (!imported.length) {
+        setImportStatus("No contacts were selected.");
+        return;
+      }
+
+      setContacts((items) => {
+        const existingPhones = new Set(items.map((item) => item.phone));
+        return [...imported.filter((item) => !existingPhones.has(item.phone)), ...items];
+      });
+      setImportStatus(`Imported ${imported.length} contact${imported.length === 1 ? "" : "s"}.`);
+    } catch {
+      setImportStatus("Contact import was cancelled or blocked.");
+    }
+  };
+
   return (
     <div className="grid h-full grid-cols-[230px_1fr] gap-6">
       <div className="flex flex-col gap-6">
@@ -88,7 +136,16 @@ export function PhonePage() {
               >
                 <Plus size={32} />
               </button>
+              <button
+                type="button"
+                onClick={importPhoneContacts}
+                className="grid min-h-16 min-w-16 place-items-center rounded-full bg-white/10 outline-none transition hover:bg-white/16 focus-visible:ring-2 focus-visible:ring-electric-300"
+                aria-label="Import phone contacts"
+              >
+                <Download size={30} />
+              </button>
             </div>
+            {importStatus ? <p className="mt-3 text-sm text-white/50">{importStatus}</p> : null}
 
             <div className="mt-6 min-h-0 flex-1 overflow-auto pr-2">
               {filteredContacts.map((contact) => (
